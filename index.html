@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finanças Família</title>
+  <meta name="theme-color" content="#2563eb">
+  <link rel="manifest" href="manifest.json">
+  <!-- Chart.js para geração de gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #f8fafc; color: #1e293b; padding-bottom: 70px; }
+    
+    /* Header Minimalista */
+    header { background-color: #2563eb; color: #fff; padding: 16px; text-align: center; font-weight: 600; font-size: 1.1rem; }
+    
+    /* Container Principal */
+    .container { padding: 16px; max-width: 500px; margin: 0 auto; }
+    
+    /* Cards e Formulários */
+    .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: #475569; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; outline: none; background: #fff; }
+    input:focus, select:focus { border-color: #2563eb; }
+    
+    /* Botões */
+    .btn { width: 100%; padding: 14px; background-color: #2563eb; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .btn:active { opacity: 0.9; }
+    .btn-sec { background-color: #e2e8f0; color: #334155; margin-top: 8px; }
+
+    /* Radio/Pill toggle */
+    .radio-group { display: flex; gap: 10px; }
+    .radio-pill { flex: 1; text-align: center; }
+    .radio-pill input { display: none; }
+    .radio-pill span { display: block; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .radio-pill input:checked + span { background-color: #2563eb; color: #fff; border-color: #2563eb; }
+
+    /* Navegação Inferior Mobile */
+    nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; display: flex; border-top: 1px solid #e2e8f0; height: 60px; z-index: 100; }
+    nav button { flex: 1; border: none; background: none; font-size: 0.70rem; color: #64748b; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+    nav button.active { color: #2563eb; font-weight: 700; }
+
+    /* Esconder Abas Inativas */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Lista de Consultas */
+    .item-consulta { border-bottom: 1px solid #f1f5f9; padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+    .item-entrada { color: #16a34a; font-weight: 600; }
+    .item-saida { color: #dc2626; font-weight: 600; }
+
+    /* Cards de Resumo no Dashboard */
+    .dash-summary { display: flex; gap: 8px; margin-bottom: 16px; }
+    .dash-card { flex: 1; background: #fff; padding: 12px; border-radius: 10px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .dash-card small { font-size: 0.75rem; color: #64748b; font-weight: 600; }
+    .dash-card div { font-size: 0.95rem; font-weight: 700; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <header id="headerTitle">Novo Lançamento</header>
+
+  <div class="container">
+    
+    <!-- ABA 1: FORMULÁRIO -->
+    <div id="tabForm" class="tab-content active">
+      <form id="financeForm" class="card">
+        
+        <div class="form-group">
+          <label>Pessoa</label>
+          <select id="selectPessoa" required></select>
+        </div>
+
+        <div class="form-group">
+          <label>Movimentação</label>
+          <div class="radio-group">
+            <label class="radio-pill">
+              <input type="radio" name="movimentacao" value="Entrada" checked onchange="toggleMovimentacao()">
+              <span>Entrada</span>
+            </label>
+            <label class="radio-pill">
+              <input type="radio" name="movimentacao" value="Saída" onchange="toggleMovimentacao()">
+              <span>Saída</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" id="inputData" required>
+        </div>
+
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="number" step="0.01" id="inputValor" placeholder="0,00" required>
+        </div>
+
+        <div class="form-group">
+          <label id="labelTipo">Motivo da Entrada</label>
+          <select id="selectTipo" onchange="checkOutros()" required></select>
+        </div>
+
+        <div class="form-group" id="groupObs" style="display: none;">
+          <label>Observação</label>
+          <textarea id="inputObs" rows="2" placeholder="Descreva os detalhes..."></textarea>
+        </div>
+
+        <button type="submit" class="btn">Salvar Lançamento</button>
+      </form>
+    </div>
+
+    <!-- ABA 2: CONSULTA -->
+    <div id="tabConsulta" class="tab-content">
+      <div class="card">
+        <div class="form-group">
+          <label>Filtrar por Pessoa</label>
+          <select id="filtroPessoa" onchange="filtrarConsulta()">
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Filtrar por Mês/Ano</label>
+          <input type="month" id="filtroMesAno" onchange="filtrarConsulta()">
+        </div>
+      </div>
+
+      <div class="card" id="listaResultados">
+        <p style="text-align: center; color: #94a3b8;">Carregando dados...</p>
+      </div>
+    </div>
+
+    <!-- ABA 3: DASHBOARDS -->
+    <div id="tabDash" class="tab-content">
+      <div class="card">
+        <div class="form-group">
+          <label>Filtrar por Mês/Ano</label>
+          <input type="month" id="dashMesAno" onchange="atualizarDashboards()">
+        </div>
+        <div class="form-group">
+          <label>Filtrar por Pessoa</label>
+          <select id="dashPessoa" onchange="atualizarDashboards()">
+            <option value="">Todas as Pessoas</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Resumo Financeiro -->
+      <div class="dash-summary">
+        <div class="dash-card">
+          <small>Entradas</small>
+          <div id="totalEntradas" style="color: #16a34a;">R$ 0,00</div>
+        </div>
+        <div class="dash-card">
+          <small>Saídas</small>
+          <div id="totalSaidas" style="color: #dc2626;">R$ 0,00</div>
+        </div>
+        <div class="dash-card">
+          <small>Saldo</small>
+          <div id="totalSaldo" style="color: #2563eb;">R$ 0,00</div>
+        </div>
+      </div>
+
+      <!-- Gráfico de Pizza (Saídas por Categoria) -->
+      <div class="card">
+        <h4 style="margin-bottom: 12px; font-size: 0.95rem; color: #334155;">Gastos por Categoria</h4>
+        <canvas id="chartPizza"></canvas>
+      </div>
+
+      <!-- Gráfico de Linha (Evolução Diária) -->
+      <div class="card">
+        <h4 style="margin-bottom: 12px; font-size: 0.95rem; color: #334155;">Evolução de Entradas e Saídas</h4>
+        <canvas id="chartLinha"></canvas>
+      </div>
+    </div>
+
+    <!-- ABA 4: CONFIGURAÇÕES -->
+    <div id="tabConfig" class="tab-content">
+      <div class="card">
+        <h3>Pessoas Cadastradas</h3>
+        <div class="form-group" style="margin-top: 10px;">
+          <input type="text" id="novoNome" placeholder="Novo Nome">
+          <button type="button" class="btn btn-sec" onclick="adicionarPessoa()">Adicionar Nome</button>
+        </div>
+        <div id="listaPessoasGerenciador"></div>
+      </div>
+
+      <div class="card">
+        <h3>Link do Apps Script / Planilha</h3>
+        <div class="form-group" style="margin-top: 10px;">
+          <input type="text" id="scriptUrlInput" placeholder="URL do Web App do Apps Script">
+          <button type="button" class="btn" style="margin-top: 8px;" onclick="salvarConfigScript()">Salvar Link</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NAVEGAÇÃO MOBILE -->
+  <nav>
+    <button class="active" onclick="switchTab('tabForm', 'Novo Lançamento', this)">
+      📝 <span>Lançar</span>
+    </button>
+    <button onclick="switchTab('tabConsulta', 'Consultar Gastos', this)">
+      🔍 <span>Consultar</span>
+    </button>
+    <button onclick="switchTab('tabDash', 'Dashboards', this)">
+      📊 <span>Gráficos</span>
+    </button>
+    <button onclick="switchTab('tabConfig', 'Configurações', this)">
+      ⚙️ <span>Ajustes</span>
+    </button>
+  </nav>
+
+  <script>
+    let config = {
+      scriptUrl: localStorage.getItem('scriptUrl') || '',
+      pessoas: JSON.parse(localStorage.getItem('pessoas')) || ['Daniel', 'Aline', 'Emanuele', 'Asafe', 'Emanuel'],
+      tiposSaida: ['Alimentação', 'Vestuário', 'Água', 'Luz', 'Telefone', 'Internet', 'Gás', 'Padaria', 'Armarinho', 'Presentes', 'Lanche de Rua', 'Manutenção Carro', 'Manutenção Casa', 'Cartão de Crédito', 'Dízimos e Ofertas', 'Mobilidade', 'Combustível', 'Escola', 'Condomínio', 'Prestações', 'Empréstimos', 'Doações', 'Mesada', 'Outros'],
+      motivosEntrada: ['Salário', 'Vendas', 'Mensalidades', 'Ofertas']
+    };
+
+    let dadosGerais = [];
+    let chartPizzaInst = null;
+    let chartLinhaInst = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('inputData').valueAsDate = new Date();
+      document.getElementById('scriptUrlInput').value = config.scriptUrl;
+      
+      // Define mês atual padrão nos filtros
+      const hoje = new Date();
+      const mesAnoAtual = hoje.toISOString().slice(0, 7);
+      document.getElementById('dashMesAno').value = mesAnoAtual;
+      
+      carregarPessoas();
+      toggleMovimentacao();
+    });
+
+    function carregarPessoas() {
+      const selectPessoa = document.getElementById('selectPessoa');
+      const filtroPessoa = document.getElementById('filtroPessoa');
+      const dashPessoa = document.getElementById('dashPessoa');
+      const gerencial = document.getElementById('listaPessoasGerenciador');
+      
+      selectPessoa.innerHTML = '';
+      filtroPessoa.innerHTML = '<option value="">Todas</option>';
+      dashPessoa.innerHTML = '<option value="">Todas as Pessoas</option>';
+      gerencial.innerHTML = '';
+
+      config.pessoas.forEach(p => {
+        selectPessoa.innerHTML += `<option value="${p}">${p}</option>`;
+        filtroPessoa.innerHTML += `<option value="${p}">${p}</option>`;
+        dashPessoa.innerHTML += `<option value="${p}">${p}</option>`;
+        gerencial.innerHTML += `<div style="display:flex; justify-content:space-between; margin-top:8px; align-items:center;"><span>${p}</span><button type="button" onclick="removerPessoa('${p}')" style="color:red; border:none; background:none; font-weight:600; cursor:pointer;">Excluir</button></div>`;
+      });
+    }
+
+    function toggleMovimentacao() {
+      const mov = document.querySelector('input[name="movimentacao"]:checked').value;
+      const selectTipo = document.getElementById('selectTipo');
+      const labelTipo = document.getElementById('labelTipo');
+      
+      selectTipo.innerHTML = '';
+      if (mov === 'Entrada') {
+        labelTipo.innerText = 'Motivo da Entrada';
+        config.motivosEntrada.forEach(m => selectTipo.innerHTML += `<option value="${m}">${m}</option>`);
+      } else {
+        labelTipo.innerText = 'Tipo de Saída';
+        config.tiposSaida.forEach(t => selectTipo.innerHTML += `<option value="${t}">${t}</option>`);
+      }
+      checkOutros();
+    }
+
+    function checkOutros() {
+      const selectTipo = document.getElementById('selectTipo').value;
+      document.getElementById('groupObs').style.display = (selectTipo === 'Outros') ? 'block' : 'none';
+    }
+
+    function switchTab(tabId, title, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.getElementById('headerTitle').innerText = title;
+      btn.classList.add('active');
+
+      if (tabId === 'tabConsulta' || tabId === 'tabDash') {
+        carregarDadosServidor();
+      }
+    }
+
+    // Salvar no Sheets
+    document.getElementById('financeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!config.scriptUrl) { alert('Configure o link nas configurações.'); return; }
+
+      const payload = {
+        action: 'salvar',
+        pessoa: document.getElementById('selectPessoa').value,
+        movimentacao: document.querySelector('input[name="movimentacao"]:checked').value,
+        dataMov: document.getElementById('inputData').value,
+        valor: document.getElementById('inputValor').value,
+        tipoOuMotivo: document.getElementById('selectTipo').value,
+        observacao: document.getElementById('inputObs').value
+      };
+
+      try {
+        await fetch(config.scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        alert('Lançamento registrado!');
+        document.getElementById('inputValor').value = '';
+        document.getElementById('inputObs').value = '';
+        document.getElementById('inputData').valueAsDate = new Date();
+        checkOutros();
+      } catch (err) {
+        alert('Erro ao salvar dados.');
+      }
+    });
+
+    // Carregar Dados
+    async function carregarDadosServidor() {
+      if (!config.scriptUrl) return;
+
+      try {
+        const response = await fetch(config.scriptUrl);
+        const res = await response.json();
+        if (res.status === 'success') {
+          dadosGerais = res.data;
+          filtrarConsulta();
+          atualizarDashboards();
+        }
+      } catch (err) {
+        console.error("Erro ao carregar dados", err);
+      }
+    }
+
+    function filtrarConsulta() {
+      const pessoa = document.getElementById('filtroPessoa').value;
+      const mesAno = document.getElementById('filtroMesAno').value;
+      const resEl = document.getElementById('listaResultados');
+      
+      let filtrados = dadosGerais;
+
+      if (pessoa) filtrados = filtrados.filter(i => i.pessoa === pessoa);
+      if (mesAno) filtrados = filtrados.filter(i => i.dataMov && i.dataMov.startsWith(mesAno));
+
+      if (filtrados.length === 0) {
+        resEl.innerHTML = '<p style="text-align: center; color: #94a3b8;">Nenhum registro encontrado.</p>';
+        return;
+      }
+
+      resEl.innerHTML = '';
+      filtrados.slice().reverse().forEach(item => {
+        const isEntrada = item.movimentacao === 'Entrada';
+        const valorFmt = parseFloat(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        resEl.innerHTML += `
+          <div class="item-consulta">
+            <div>
+              <strong>${item.tipoOuMotivo}</strong> <small>(${item.pessoa})</small><br>
+              <small style="color:#64748b;">${item.dataMov} ${item.observacao ? '- ' + item.observacao : ''}</small>
+            </div>
+            <div class="${isEntrada ? 'item-entrada' : 'item-saida'}">
+              ${isEntrada ? '+' : '-'} ${valorFmt}
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // LÓGICA DOS DASHBOARDS E GRÁFICOS
+    function atualizarDashboards() {
+      const mesAno = document.getElementById('dashMesAno').value;
+      const pessoa = document.getElementById('dashPessoa').value;
+
+      let filtrados = dadosGerais;
+      if (mesAno) filtrados = filtrados.filter(i => i.dataMov && i.dataMov.startsWith(mesAno));
+      if (pessoa) filtrados = filtrados.filter(i => i.pessoa === pessoa);
+
+      // Totais e Saldos
+      let ent = 0, sai = 0;
+      let categoriasSaida = {};
+      let dadosDiarios = {};
+
+      filtrados.forEach(item => {
+        const val = parseFloat(item.valor || 0);
+        const data = item.dataMov;
+        
+        if (!dadosDiarios[data]) dadosDiarios[data] = { entrada: 0, saída: 0 };
+
+        if (item.movimentacao === 'Entrada') {
+          ent += val;
+          dadosDiarios[data].entrada += val;
+        } else {
+          sai += val;
+          dadosDiarios[data].saída += val;
+          
+          const cat = item.tipoOuMotivo || 'Outros';
+          categoriasSaida[cat] = (categoriasSaida[cat] || 0) + val;
+        }
+      });
+
+      // Atualizar Cards
+      document.getElementById('totalEntradas').innerText = ent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      document.getElementById('totalSaidas').innerText = sai.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      document.getElementById('totalSaldo').innerText = (ent - sai).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+      renderPizzaChart(categoriasSaida);
+      renderLinhaChart(dadosDiarios);
+    }
+
+    function renderPizzaChart(categorias) {
+      const ctx = document.getElementById('chartPizza').getContext('2d');
+      const labels = Object.keys(categorias);
+      const data = Object.values(categorias);
+
+      if (chartPizzaInst) chartPizzaInst.destroy();
+
+      chartPizzaInst = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels.length ? labels : ['Sem dados'],
+          datasets: [{
+            data: data.length ? data : [1],
+            backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b']
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    function renderLinhaChart(diarios) {
+      const ctx = document.getElementById('chartLinha').getContext('2d');
+      const datasOrdenadas = Object.keys(diarios).sort();
+      const entradas = datasOrdenadas.map(d => diarios[d].entrada);
+      const saidas = datasOrdenadas.map(d => diarios[d].saída);
+
+      if (chartLinhaInst) chartLinhaInst.destroy();
+
+      chartLinhaInst = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: datasOrdenadas,
+          datasets: [
+            { label: 'Entradas', data: entradas, borderColor: '#16a34a', backgroundColor: '#16a34a22', fill: true, tension: 0.3 },
+            { label: 'Saídas', data: saidas, borderColor: '#dc2626', backgroundColor: '#dc262622', fill: true, tension: 0.3 }
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    // Configurações
+    function salvarConfigScript() {
+      const url = document.getElementById('scriptUrlInput').value.trim();
+      localStorage.setItem('scriptUrl', url);
+      config.scriptUrl = url;
+      alert('Link atualizado!');
+    }
+
+    function adicionarPessoa() {
+      const nome = document.getElementById('novoNome').value.trim();
+      if (nome && !config.pessoas.includes(nome)) {
+        config.pessoas.push(nome);
+        localStorage.setItem('pessoas', JSON.stringify(config.pessoas));
+        carregarPessoas();
+        document.getElementById('novoNome').value = '';
+      }
+    }
+
+    function removerPessoa(nome) {
+      config.pessoas = config.pessoas.filter(p => p !== nome);
+      localStorage.setItem('pessoas', JSON.stringify(config.pessoas));
+      carregarPessoas();
+    }
+  </script>
+</body>
+</html>
